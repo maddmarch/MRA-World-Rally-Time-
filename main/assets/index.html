@@ -1,0 +1,498 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>MRA RALLY WORLD TIMER</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: a world-clock bar pinned to the top (milliseconds), then a board of 24 slots. Each slot has one button that logs the time of day. */
+:root {
+  --bg: #ECF0F3;
+  --surface: #FFFFFF;
+  --surface2: #F3F6F8;
+  --line: #D3DBE2;
+  --fg: #15212B;
+  --muted: #5B6B79;
+  --accent: #1B7F3A;
+  --accent-fg: #FFFFFF;
+  --stop: #B8432C;
+  --stop-fg: #FFFFFF;
+  --head: 'Space Grotesk', system-ui, sans-serif;
+  --body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E151B; --surface: #16202A; --surface2: #1C2833; --line: #2B3947;
+    --fg: #E7EEF3; --muted: #93A4B3; --accent: #4CC76B; --accent-fg: #062B12;
+    --stop: #F2896F; --stop-fg: #2A0F08;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E151B; --surface: #16202A; --surface2: #1C2833; --line: #2B3947;
+  --fg: #E7EEF3; --muted: #93A4B3; --accent: #4CC76B; --accent-fg: #062B12;
+  --stop: #F2896F; --stop-fg: #2A0F08;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.45 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 56px;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 30; background: var(--bg);
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font: 700 1.7rem/1.1 var(--head); margin: 0 0 6px; letter-spacing: 0.01em; text-wrap: balance; }
+.brand { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.brand > div:last-child { flex: 1 1 280px; min-width: 0; }
+.logo { background: #FFFFFF; border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; display: flex; max-width: 100%; }
+.logo img { display: block; height: 58px; width: auto; max-width: 100%; }
+h2 { font: 700 1.15rem/1.2 var(--head); margin: 0; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+.sechead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.tools label { font-size: 0.8rem; color: var(--muted); }
+.btn, select, input[type="text"].zin {
+  font: 500 0.875rem/1 var(--body);
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  min-height: 38px;
+}
+.btn { cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.zin { width: 190px; max-width: 100%; }
+#zform { display: flex; gap: 8px; flex-wrap: wrap; }
+#zmsg { font-size: 0.8rem; color: var(--stop); min-height: 1em; }
+.muted { color: var(--muted); }
+
+/* pinned world clock */
+.stickybar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--bg); padding-block: 8px; border-bottom: 1px solid var(--line);
+}
+.clocks { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+.clock { flex: 1 0 196px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.clock.local { border-color: var(--accent); }
+.chead { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 20px; }
+.cname { font: 600 0.85rem/1.2 var(--head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cname small { font: 500 0.65rem/1 var(--head); letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+.x { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 5px; border-radius: 6px; }
+.x:hover { color: var(--fg); background: var(--surface2); }
+.x:focus-visible { outline: 2px solid var(--accent); }
+.ctime { font: 500 1.15rem/1.2 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmeta { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill { font: 600 0.68rem/1 var(--head); letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; background: var(--surface2); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+
+/* slots */
+.watches { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.watch { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.watch.used .pill { color: var(--accent); border-color: var(--accent); background: transparent; }
+.wtop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.label { font: 600 1rem/1.2 var(--head); color: var(--fg); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 6px; margin-left: -6px; min-width: 0; width: 100%; }
+.label:hover { border-color: var(--line); }
+.label:focus-visible { outline: 2px solid var(--accent); }
+.last { padding: 8px 10px; background: var(--surface2); border-radius: 8px; min-height: 62px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.last .cap { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.last .val { font: 500 1.1rem/1.2 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.last .val.none { color: var(--muted); font-weight: 400; }
+.last .dt { font-size: 0.75rem; color: var(--muted); }
+.actions { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; min-height: 48px; font-size: 0.95rem; }
+.go:hover { border-color: var(--accent); filter: brightness(1.06); }
+.go:active { filter: brightness(0.92); }
+.clr[data-armed="1"] { background: var(--stop); color: var(--stop-fg); border-color: var(--stop); }
+.logd summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); padding: 2px 0; }
+.log { list-style: none; margin: 8px 0 0; padding: 0; max-height: 170px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.log li { display: grid; grid-template-columns: 2.4rem 1fr; gap: 2px 8px; font-size: 0.78rem; border-top: 1px solid var(--line); padding-top: 6px; }
+.log .k { font: 600 0.72rem/1.5 var(--head); color: var(--accent); }
+.log time { font: 500 0.78rem/1.4 var(--mono); font-variant-numeric: tabular-nums; }
+.log .m { grid-column: 2; color: var(--muted); }
+
+#export { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+#export textarea { width: 100%; min-height: 200px; resize: vertical; font: 400 0.8rem/1.5 var(--mono); color: var(--fg); background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+#export .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+@keyframes stamp { from { box-shadow: 0 0 0 3px var(--accent); } to { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: no-preference) {
+  .watch.flash { animation: stamp 0.5s ease-out; }
+}
+</style>
+
+<div class="wrap">
+  <header class="brand">
+    <div class="logo" aria-label="Montego Bay Racing Association"><strong style="font:700 18px Space Grotesk,system-ui,sans-serif;color:#1B7F3A;letter-spacing:.04em">MRA</strong><span style="align-self:center;margin-left:10px;font:600 11px Inter,system-ui,sans-serif;color:#15212B">MONTEGO BAY RACING ASSOCIATION</span></div>
+    <div>
+      <h1>MRA RALLY WORLD TIMER</h1>
+      <p class="lede">World clocks stay pinned while you scroll. Each of the 24 slots logs the time of day, to the millisecond, every time you press its button.</p>
+    </div>
+  </header>
+
+  <div class="stickybar">
+    <div id="clocks" class="clocks"></div>
+  </div>
+
+  <section aria-labelledby="h-clocks">
+    <div class="sechead" style="margin-bottom:0">
+      <h2 id="h-clocks">Clocks</h2>
+      <div class="tools">
+        <button type="button" class="btn" id="h24" aria-pressed="false">24-hour</button>
+        <form id="zform" autocomplete="off">
+          <label for="zin" class="muted" style="align-self:center">Add a place</label>
+          <input id="zin" class="zin" type="text" list="tzlist" placeholder="Tokyo or Asia/Tokyo">
+          <button type="submit" class="btn" id="zadd">Add</button>
+        </form>
+        <span id="zmsg" role="status"></span>
+      </div>
+    </div>
+    <datalist id="tzlist"></datalist>
+  </section>
+
+  <section aria-labelledby="h-watches">
+    <div class="sechead">
+      <h2 id="h-watches">Time logs <span id="summary" class="muted" style="font:400 0.85rem var(--body)"></span></h2>
+      <div class="tools">
+        <label for="rec">Show logged times in</label>
+        <select id="rec"></select>
+        <button type="button" class="btn" id="clearall">Clear all</button>
+        <button type="button" class="btn" id="exportbtn" aria-expanded="false" aria-controls="export">Export log</button>
+      </div>
+    </div>
+    <div id="export" hidden>
+      <textarea id="exporttext" readonly aria-label="Time log text"></textarea>
+      <div class="row">
+        <button type="button" class="btn" id="copybtn">Copy text</button>
+        <span id="copymsg" class="muted" role="status"></span>
+      </div>
+    </div>
+    <div id="watches" class="watches"></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var KEY = 'timing-desk-v2';
+  var N = 24;
+  var localTz = 'UTC';
+  try { localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) {}
+
+  var curated = ['UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Jamaica','America/Mexico_City','America/Sao_Paulo','America/Toronto','Atlantic/Reykjavik','Europe/London','Europe/Paris','Europe/Berlin','Europe/Madrid','Europe/Rome','Europe/Moscow','Africa/Cairo','Africa/Lagos','Africa/Johannesburg','Africa/Nairobi','Asia/Dubai','Asia/Karachi','Asia/Kolkata','Asia/Dhaka','Asia/Bangkok','Asia/Singapore','Asia/Hong_Kong','Asia/Shanghai','Asia/Seoul','Asia/Tokyo','Australia/Perth','Australia/Sydney','Pacific/Auckland','Pacific/Honolulu'];
+  var tzList = [];
+  try { tzList = Intl.supportedValuesOf('timeZone').slice(); } catch (e) {}
+  if (!tzList.length) tzList = curated.slice();
+  if (tzList.indexOf('UTC') < 0) tzList.push('UTC');
+
+  function validTz(tz) {
+    if (typeof tz !== 'string') return false;
+    try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch (e) { return false; }
+  }
+  function city(tz) { return tz.split('/').pop().replace(/_/g, ' '); }
+
+  var defaultZones = ['America/New_York','America/Los_Angeles','Europe/London','Europe/Paris','Asia/Dubai','Asia/Kolkata','Asia/Tokyo','Australia/Sydney'].filter(function (z) { return z !== localTz; });
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function blank(i) { return { label: 'Slot ' + pad2(i + 1), log: [] }; }
+
+  function load() {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    var st = { h24: false, rec: 'local', zones: defaultZones.slice(), watches: [] };
+    if (s && typeof s === 'object') {
+      if (typeof s.h24 === 'boolean') st.h24 = s.h24;
+      if (typeof s.rec === 'string') st.rec = s.rec;
+      if (Array.isArray(s.zones)) st.zones = s.zones.filter(validTz);
+    }
+    for (var i = 0; i < N; i++) {
+      var w = blank(i);
+      var o = s && Array.isArray(s.watches) ? s.watches[i] : null;
+      if (o && typeof o === 'object') {
+        if (typeof o.label === 'string') w.label = o.label.slice(0, 28);
+        if (Array.isArray(o.log)) {
+          w.log = o.log.filter(function (e) { return e && isFinite(e.t); }).map(function (e) { return { t: +e.t }; });
+        }
+      }
+      st.watches.push(w);
+    }
+    return st;
+  }
+  var state = load();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  /* ---------- formatting ---------- */
+  var fcache = {};
+  function fmt(key, opts) { return fcache[key] || (fcache[key] = new Intl.DateTimeFormat('en-US', opts)); }
+
+  function timeStr(ms, tz) {
+    var f = fmt('t|' + tz + '|' + state.h24, { timeZone: tz, hourCycle: state.h24 ? 'h23' : 'h12', hour: state.h24 ? '2-digit' : 'numeric', minute: '2-digit', second: '2-digit' });
+    var h = '', m = '', s = '', p = '';
+    f.formatToParts(ms).forEach(function (x) {
+      if (x.type === 'hour') h = x.value;
+      else if (x.type === 'minute') m = x.value;
+      else if (x.type === 'second') s = x.value;
+      else if (x.type === 'dayPeriod') p = x.value;
+    });
+    return h + ':' + m + ':' + s + '.' + String(Math.floor(ms) % 1000).padStart(3, '0') + (p ? ' ' + p.toUpperCase() : '');
+  }
+  function dateStr(ms, tz) {
+    return fmt('d|' + tz, { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).format(ms);
+  }
+  function offsetStr(ms, tz) {
+    var v = '';
+    fmt('o|' + tz, { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(ms).forEach(function (x) { if (x.type === 'timeZoneName') v = x.value; });
+    return v.replace('GMT', 'UTC');
+  }
+
+  /* ---------- world clock ---------- */
+  var clocksEl = document.getElementById('clocks');
+  var recSel = document.getElementById('rec');
+  var clockRefs = [];
+
+  function clockZones() { return [localTz].concat(state.zones.filter(function (z) { return z !== localTz; })); }
+
+  function buildClocks() {
+    clocksEl.innerHTML = '';
+    clockRefs = [];
+    clockZones().forEach(function (tz, idx) {
+      var c = document.createElement('div');
+      c.className = 'clock' + (idx === 0 ? ' local' : '');
+      c.innerHTML = '<div class="chead"><div class="cname"></div></div><div class="ctime"></div><div class="cmeta"></div>';
+      var nm = c.querySelector('.cname');
+      nm.textContent = city(tz);
+      if (idx === 0) { var sm = document.createElement('small'); sm.textContent = 'Local'; nm.appendChild(sm); }
+      if (idx > 0) {
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = 'x'; x.textContent = '×';
+        x.setAttribute('aria-label', 'Remove ' + city(tz));
+        x.addEventListener('click', function () { removeZone(tz); });
+        c.querySelector('.chead').appendChild(x);
+      }
+      clocksEl.appendChild(c);
+      clockRefs.push({ tz: tz, time: c.querySelector('.ctime'), meta: c.querySelector('.cmeta') });
+    });
+    updateClocks(Date.now(), true);
+  }
+  function updateClocks(now, withMeta) {
+    for (var i = 0; i < clockRefs.length; i++) {
+      var r = clockRefs[i];
+      r.time.textContent = timeStr(now, r.tz);
+      if (withMeta) r.meta.textContent = dateStr(now, r.tz) + ' · ' + offsetStr(now, r.tz);
+    }
+  }
+  function removeZone(tz) {
+    state.zones = state.zones.filter(function (z) { return z !== tz; });
+    if (state.rec === tz) state.rec = 'local';
+    save(); buildClocks(); buildRec(); renderAllWatches();
+  }
+  function buildRec() {
+    recSel.innerHTML = '';
+    var o = document.createElement('option');
+    o.value = 'local'; o.textContent = 'This device (' + city(localTz) + ')';
+    recSel.appendChild(o);
+    state.zones.forEach(function (z) {
+      if (z === localTz) return;
+      var p = document.createElement('option');
+      p.value = z; p.textContent = city(z);
+      recSel.appendChild(p);
+    });
+    if (state.rec !== 'local' && state.zones.indexOf(state.rec) < 0) state.rec = 'local';
+    recSel.value = state.rec;
+  }
+  function recTz() { return state.rec === 'local' ? localTz : state.rec; }
+
+  var dl = document.getElementById('tzlist');
+  tzList.forEach(function (z) { var o = document.createElement('option'); o.value = z; dl.appendChild(o); });
+
+  function resolveTz(v) {
+    v = v.trim(); if (!v) return null;
+    var low = v.toLowerCase().replace(/\s+/g, ' ');
+    var i;
+    for (i = 0; i < tzList.length; i++) if (tzList[i].toLowerCase() === low) return tzList[i];
+    for (i = 0; i < tzList.length; i++) if (city(tzList[i]).toLowerCase() === low) return tzList[i];
+    for (i = 0; i < tzList.length; i++) if (city(tzList[i]).toLowerCase().indexOf(low) === 0) return tzList[i];
+    return validTz(v) ? v : null;
+  }
+  var zmsg = document.getElementById('zmsg');
+  document.getElementById('zform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var inp = document.getElementById('zin');
+    var tz = resolveTz(inp.value);
+    if (!tz) { zmsg.style.color = 'var(--stop)'; zmsg.textContent = 'No match. Try a city name such as Lagos, or a zone such as Africa/Lagos.'; return; }
+    if (clockZones().indexOf(tz) >= 0) { zmsg.style.color = 'var(--muted)'; zmsg.textContent = city(tz) + ' is already on the board.'; return; }
+    state.zones.push(tz); inp.value = ''; zmsg.textContent = '';
+    save(); buildClocks(); buildRec();
+  });
+
+  var h24btn = document.getElementById('h24');
+  h24btn.setAttribute('aria-pressed', state.h24 ? 'true' : 'false');
+  h24btn.addEventListener('click', function () {
+    state.h24 = !state.h24;
+    h24btn.setAttribute('aria-pressed', state.h24 ? 'true' : 'false');
+    save(); updateClocks(Date.now(), true); renderAllWatches();
+  });
+  recSel.addEventListener('change', function () { state.rec = recSel.value; save(); renderAllWatches(); });
+
+  /* ---------- time-log slots ---------- */
+  var watchesEl = document.getElementById('watches');
+  var watchEls = [];
+
+  function buildWatch(i) {
+    var a = document.createElement('article');
+    a.className = 'watch';
+    a.dataset.i = i;
+    a.innerHTML =
+      '<div class="wtop"><input class="label" type="text" maxlength="28" id="label-' + i + '" aria-label="Name for slot ' + (i + 1) + '"><span class="pill cntpill">0 logs</span></div>' +
+      '<div class="last"><span class="cap">Last logged</span><span class="val none">Not logged yet</span><span class="dt"></span></div>' +
+      '<div class="actions"><button type="button" class="btn go">Log time</button><button type="button" class="btn clr">Clear</button></div>' +
+      '<details class="logd"><summary>All logs <span class="cnt"></span></summary><ol class="log"></ol></details>';
+    var inp = a.querySelector('.label');
+    inp.value = state.watches[i].label;
+    watchesEl.appendChild(a);
+    return {
+      root: a, label: inp, pill: a.querySelector('.cntpill'), val: a.querySelector('.val'), dt: a.querySelector('.dt'),
+      go: a.querySelector('.go'), clr: a.querySelector('.clr'), cnt: a.querySelector('.cnt'), log: a.querySelector('.log')
+    };
+  }
+
+  function renderWatch(i) {
+    var w = state.watches[i], el = watchEls[i], tz = recTz(), n = w.log.length;
+    el.root.classList.toggle('used', n > 0);
+    el.pill.textContent = n + (n === 1 ? ' log' : ' logs');
+    el.go.setAttribute('aria-label', 'Log time for ' + w.label);
+    el.cnt.textContent = n ? '(' + n + ')' : '';
+    if (n) {
+      var last = w.log[n - 1];
+      el.val.textContent = timeStr(last.t, tz);
+      el.val.classList.remove('none');
+      el.dt.textContent = dateStr(last.t, tz) + ' · ' + offsetStr(last.t, tz);
+    } else {
+      el.val.textContent = 'Not logged yet';
+      el.val.classList.add('none');
+      el.dt.textContent = '';
+    }
+    el.log.innerHTML = '';
+    for (var k = n - 1, shown = 0; k >= 0 && shown < 200; k--, shown++) {
+      var e = w.log[k];
+      var li = document.createElement('li');
+      var kk = document.createElement('span'); kk.className = 'k'; kk.textContent = '#' + (k + 1);
+      var tm = document.createElement('time'); tm.textContent = timeStr(e.t, tz);
+      var m = document.createElement('span'); m.className = 'm'; m.textContent = dateStr(e.t, tz);
+      li.appendChild(kk); li.appendChild(tm); li.appendChild(m);
+      el.log.appendChild(li);
+    }
+  }
+  function renderAllWatches() { for (var i = 0; i < N; i++) renderWatch(i); updateSummary(); }
+
+  function updateSummary() {
+    var n = state.watches.filter(function (w) { return w.log.length > 0; }).length;
+    document.getElementById('summary').textContent = '· ' + n + ' of ' + N + ' slots used';
+  }
+
+  function logTime(i) {
+    var now = Date.now();
+    state.watches[i].log.push({ t: now });
+    save(); renderWatch(i); updateSummary();
+    var r = watchEls[i].root;
+    r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash');
+  }
+
+  var armTimers = {};
+  function arm(btn, key, idle, action) {
+    if (btn.dataset.armed === '1') {
+      clearTimeout(armTimers[key]); btn.dataset.armed = '0'; btn.textContent = idle; action(); return;
+    }
+    btn.dataset.armed = '1'; btn.textContent = 'Confirm?';
+    armTimers[key] = setTimeout(function () { btn.dataset.armed = '0'; btn.textContent = idle; }, 2800);
+  }
+
+  for (var i = 0; i < N; i++) watchEls.push(buildWatch(i));
+
+  watchesEl.addEventListener('click', function (e) {
+    var card = e.target.closest('.watch'); if (!card) return;
+    var i = +card.dataset.i;
+    if (e.target.closest('.go')) logTime(i);
+    else if (e.target.closest('.clr')) {
+      if (state.watches[i].log.length) arm(watchEls[i].clr, 'c' + i, 'Clear', function () { state.watches[i].log = []; save(); renderWatch(i); updateSummary(); });
+    }
+  });
+  watchesEl.addEventListener('input', function (e) {
+    if (!e.target.classList.contains('label')) return;
+    var i = +e.target.closest('.watch').dataset.i;
+    state.watches[i].label = e.target.value.slice(0, 28);
+    watchEls[i].go.setAttribute('aria-label', 'Log time for ' + state.watches[i].label);
+    save();
+  });
+
+  var clearAllBtn = document.getElementById('clearall');
+  clearAllBtn.addEventListener('click', function () {
+    var any = state.watches.some(function (w) { return w.log.length > 0; });
+    if (!any) return;
+    arm(clearAllBtn, 'all', 'Clear all', function () {
+      state.watches.forEach(function (w) { w.log = []; });
+      save(); renderAllWatches();
+    });
+  });
+
+  /* ---------- export ---------- */
+  var exportBtn = document.getElementById('exportbtn');
+  var exportBox = document.getElementById('export');
+  var exportText = document.getElementById('exporttext');
+  var copyMsg = document.getElementById('copymsg');
+  function buildExport() {
+    var tz = recTz(), now = Date.now();
+    var lines = ['MRA Rally World Timer log, times shown in ' + tz + ' (' + offsetStr(now, tz) + ')', ''];
+    var any = false;
+    state.watches.forEach(function (w) {
+      if (!w.log.length) return;
+      any = true;
+      lines.push(w.label);
+      w.log.forEach(function (e, k) { lines.push('  #' + (k + 1) + '  ' + dateStr(e.t, tz) + ' ' + timeStr(e.t, tz)); });
+      lines.push('');
+    });
+    if (!any) lines.push('Nothing logged yet. Press Log time on a slot and it will appear here.');
+    return lines.join('\n');
+  }
+  exportBtn.addEventListener('click', function () {
+    var open = exportBox.hidden;
+    exportBox.hidden = !open;
+    exportBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    exportBtn.textContent = open ? 'Hide log' : 'Export log';
+    if (open) { exportText.value = buildExport(); copyMsg.textContent = ''; }
+  });
+  document.getElementById('copybtn').addEventListener('click', function () {
+    exportText.value = buildExport();
+    exportText.focus(); exportText.select();
+    var p;
+    try { p = navigator.clipboard.writeText(exportText.value); } catch (e) { p = null; }
+    if (p && p.then) p.then(function () { copyMsg.textContent = 'Copied.'; }, function () { copyMsg.textContent = 'Text is selected. Copy it with your device’s copy command.'; });
+    else copyMsg.textContent = 'Text is selected. Copy it with your device’s copy command.';
+  });
+
+  /* ---------- loop: clocks refresh every frame so milliseconds run ---------- */
+  var lastSec = -1;
+  function frame() {
+    var now = Date.now(), sec = Math.floor(now / 1000);
+    var meta = sec !== lastSec;
+    lastSec = sec;
+    updateClocks(now, meta);
+    requestAnimationFrame(frame);
+  }
+
+  buildRec();
+  buildClocks();
+  renderAllWatches();
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
